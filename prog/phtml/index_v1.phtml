@@ -1,0 +1,268 @@
+<?php
+/**
+ * index.phtml
+ *
+ * PHP Version 5.3
+ *
+ * LICENCE
+ *
+ * L'ensemble de ce code relève de la législation française et internationale
+ * sur le droit d'auteur et la propriété intellectuelle. Tous les droits de
+ * reproduction sont réservés, y compris pour les documents téléchargeables et
+ * les représentations iconographiques et photographiques. La reproduction de
+ * tout ou partie de ce code sur quelque support que ce soit est formellement
+ * interdite sauf autorisation écrite émanant de la société DIGITALEO.
+ *
+ * @category Digitaleo
+ * @package  Application.Module.Company.Views.Campaign
+ * @author   Digitaleo <developpement@digitaleo.com>
+ * @license  http://www.digitaleo.net/licence.txt Digitaleo Licence
+ * @link     http://www.digitaleo.net
+ */
+// Calcul de l'index du statut dans la liste de statuts
+// pour bien charger le tab JQuery
+$index = 0;
+$statusIndex = 0;
+foreach ($this->statusList as $value) {
+    if (in_array($this->status, $value)) {
+        $statusIndex = $index;
+        break;
+    }
+    $index++;
+}
+
+// test for displaying the popup for selecting the type of campaign
+$canSelectCampaignType = false;
+$addCampaignUrl = $this->href('campaign-add');
+if (($this->HasAccess('createAutomaticCampaign')) || ($this->pageAccess('list-templates') && $this->nbTemplates > 0)) {
+    $canSelectCampaignType = true;
+    $addCampaignUrl = $this->href('campaign-select');
+}
+
+$trad_renameCampaign = ucfirst($this->translate('rename campaign'));
+?>
+
+<script type="text/javascript">
+    $(function() {
+        $("#tabs").tabs({
+            selected:<?php echo $statusIndex; ?>,
+            ajaxOptions: {
+                cache: false,
+                error: function(xhr, status, index, anchor) {
+                    $(anchor.hash).html('<?php echo $this->translate('Cannot load this tab'); ?>');
+                },
+                beforeSend: function(e, ui) {
+                    $('#ajax-loading').show();
+                }
+            },
+            load: function(e, ui) {
+                $('#ajax-loading').hide();
+                // google analytics tracking
+                var status = '';
+                switch ($(ui.tab).data('status')) {
+                    case 'editing':
+                        status = 'Draft';
+                        break;
+                    case 'running':
+                        status = 'Current';
+                        break;
+                    case 'closed':
+                        status = 'Ended';
+                        break;
+                    default:
+                        break;
+                }
+                _gaq.push(['_trackEvent', 'Campaigns', 'List', status]);
+            },
+            select: function(e, ui) {
+            }
+        });
+
+        //--------------------------------------------------
+        // Gestion de la pagination en AJAX
+        // IE : rechargement d'une frame/div avec le resultat d'un appel ajax
+        // EX : <div class='ajax-paginator'>...</div>
+        $('.ajax-paginator a').live('click', function(event) {
+            event.preventDefault();
+            var id = $(this).parents('table.liste').parent().attr('id');
+            reloadTab(id, $(this).attr('href'), null);
+        });
+
+        $('.ajax-paginator select').live('change', function(event) {
+            event.preventDefault();
+            var id = $(this).parents('table.liste').parent().attr('id');
+            reloadTab(
+                    id,
+                    $(this).parent('form').attr('action'),
+                    {'perPage': $(this).children('option:selected').val()}
+            );
+        });
+
+        /**
+         * Gestion de la création d'une nouvelle campagne
+         * Affichage d'un popup de sélection du type de la campagne
+         * ou redirection vers la page de création d'une nouvelle campagne standard
+         */
+        $('#campaign-select').live('click', function(){
+            CampaignTypePopup.display(
+                "<?php echo $addCampaignUrl; ?>",
+                "<?php echo $canSelectCampaignType; ?>",
+                $(this), $(this).data('list-id'),
+                "<?php echo ucfirst($this->translate('choose campaign type'));?>");
+        });
+
+        function reloadTab(id, url, data) {
+            $('#ajax-loading').show();
+            $.get(
+                    url,
+                    data,
+                    function(data) {
+                        $("#" + id).html(data);
+                    }
+            ).error(function(jqXHR, textStatus) {
+                Tools.error('error');
+            }).complete(function() {
+                $('#ajax-loading').hide();
+            });
+        }
+    });
+
+    $('a.campaign-delete').live('click', function(event) {
+        event.preventDefault();
+        var line = $(this).closest('tr');
+        line.fadeTo(10, 0.5);
+        Tools.confirmAjax(
+                '<?php echo ucfirst($this->translate('are you sure to want to delete this element?')); ?>',
+                Translations.title_dialog_confirm,
+                Translations.base_url + $(this).attr('href'),
+                function(data){
+                    if(data.status === true){
+                        Tools.flashMessage('<?php echo ucfirst($this->translate('campaign deleted')) ?>');
+                        // Reloading current tab
+                        $("#tabs").tabs('load', <?php echo $statusIndex; ?>);
+
+                    }else{
+                        line.fadeTo(10,1);
+                        Tools.flashMessage(data.messages, 'error');
+                    }
+                },
+                false
+            );
+    });
+
+
+    //** START RENAME CAMPAIGN **//
+
+    // Getion du renommage de la liste de campagnes
+    $(document).on('click', '.campaign-rename-button', function() {
+        var id = $(this).attr('rel');
+        var nameCell = $('.contentNameCampaign_' + id);
+        var renameButtonsCell = $('.contentImgRenameCampaign_' + id);
+        var text = $.trim(nameCell.first('span').text()).replace(/\"/g, "&quot;");
+
+        //on vide le span
+        nameCell.first('span').empty();
+        nameCell.attr('rel', text);
+        //on crée le input type text.
+        nameCell.first('span').append('<input type="text" class="renameCampaign_' + id + ' renameCampaign_input" value="' + text + '"/>');
+
+        //on supprime l'image d'édition (dans un span)
+        renameButtonsCell.empty();
+        //on supprime l'image d'édition (dans un span)
+        var html = '<img rel="' + id + '" class="cancelRenameList" src="/pictures/buttons/ko.png" />';
+        html += '<img  rel="' + id + '" class="validRenameList" src="/pictures/buttons/ok.png" />';
+        renameButtonsCell.append(html);
+    });
+
+    // Gestion de l'annulation du renommage d'une liste de campagnes
+    $(document).on('click', '.cancelRenameList', function() {
+        var id = $(this).attr('rel');
+        var nameCell = $('.contentNameCampaign_' + id);
+        var renameButtonsCell = $('.contentImgRenameCampaign_' + id);
+        var text = nameCell.attr('rel');
+        //on vide le span
+        nameCell.empty();
+        //on ajoute le texte
+        nameCell.append(text);
+        //on supprime l'image d'édition (dans un span)
+        renameButtonsCell.empty();
+        //on replace l'image d'édition (dans le span)
+        var html = '<img src="/pictures/buttons/pen.png" class="campaign-rename-button alignImgRight" alt="<?php echo $trad_renameCampaign; ?>';
+        html += '" rel="' + id + '" title="<?php echo $trad_renameCampaign; ?>"/>';
+        renameButtonsCell.append(html);
+    });
+
+    // Gestion du renommage de liste de campagnes
+        $(document).on('click', '.validRenameList', function() {
+            var id = $(this).attr('rel');
+            var campaignNameCell = $('.contentNameCampaign_' + id);
+            var campaignRenameButtonsCell = $('.contentImgRenameCampaign_' + id);
+            var listId = campaignNameCell.attr('id');
+            var text = $('.renameCampaign_' + id).attr('value');
+            var oldText = campaignNameCell.attr('rel');
+
+            // on fade les boutons
+            campaignRenameButtonsCell.children('img').css({opacity: 0.4, cursor: 'wait'});
+
+            // on execute une requête permettant de changer le nom de la liste.
+            $.post('<?php echo $this->href("ajax-save"); ?>', {
+                name: text,
+                campaignId: listId
+            }, function(data) {
+                if (!data.status) {
+                    text = oldText;
+                }
+                //on vide le span
+                campaignNameCell.empty();
+                //on ajoute le texte
+                campaignNameCell.append(text);
+                //on supprime l'image d'édition (dans un span)
+                campaignRenameButtonsCell.empty();
+                //on replace l'image d'édition (dans le span)
+                campaignRenameButtonsCell.append('<img src="/pictures/buttons/pen.png" class="campaign-rename-button alignImgRight" '
+                        + 'alt="<?php echo $trad_renameCampaign; ?>" rel="' + id + '" '
+                        + 'title="<?php echo $trad_renameCampaign; ?>"/>');
+                if (!data.status) {
+                    Tools.error(data.message);
+                } else {
+                    campaignNameCell.text($('.renameCampaign_' + id).val());
+                }
+            }, 'json');
+        });
+
+    //** END RENAME CAMPAIGN **//
+
+
+
+</script>
+
+<h1><?php echo ucfirst($this->translate('my campaigns')) ?></h1>
+
+<div class="top-content-buttons">
+    <a id="campaign-select" class="add-campaign link pointer"
+       title="<?php echo ucfirst($this->translate('create a new campaign')) ?>">
+           <?php echo ucfirst($this->translate('create a new campaign')) ?><i class="fa fa-plus-circle fa-2x fa-blue fa-more"></i></a>
+</div>
+<div class="content-left-col">
+    <div id="tabs">
+        <ul>
+            <?php
+            foreach ($this->statusList as $key => $status) :
+                $url = $this->href('campaign-ajax-list', array('status' => $status));
+                $label = ucfirst($this->translate(Service_Api_Object_Campaign::STATUS_CLOSED===$key?'finished':$key));
+                ?>
+                <li>
+                    <a href="<?php echo $url; ?>" data-status="<?php echo $key; ?>">
+                        <?php echo $label; ?>
+                    </a>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+</div>
+
+<div class="bottom-content-buttons">
+    <a id="campaign-select" class="add-campaign link pointer"
+       title="<?php echo ucfirst($this->translate('create a new campaign')) ?>">
+           <?php echo ucfirst($this->translate('create a new campaign')) ?><i class="fa fa-plus-circle fa-2x fa-blue fa-more"></i></a>
+</div>

@@ -1,0 +1,44 @@
+<?php
+/**
+ * stat-detail.xls.phtml
+ *
+ * LICENCE
+ *
+ * L'ensemble de ce code relève de la législation française et internationale
+ * sur le droit d'auteur et la propriété intellectuelle. Tous les droits de
+ * reproduction sont réservés, y compris pour les documents téléchargeables et
+ * les représentations iconographiques et photographiques. La reproduction de
+ * tout ou partie de ce code sur quelque support que ce soit est formellement
+ * interdite sauf autorisation écrite émanant de la société DIGITALEO.
+ * 
+ * PHP Version 5.3
+ *
+ * @category Marketeo
+ * @package  Application.Module.Frontoffice.Views.Scripts.Campaign
+ * @author   Delia STINGA <dstinga@digitaleo.com>
+ * @license  http://www.digitaleo.net/licence.txt Digitaleo Licence
+ * @link     http://www.digitaleo.net
+ */
+
+$pRow = 1;
+$pColumn = 0;
+foreach ($this->meta as $column) {
+    $this->excel->getActiveSheet()->setCellValueExplicitByColumnAndRow($pColumn, $pRow, $column);
+    $this->excel->getActiveSheet()->getStyleByColumnAndRow($pColumn, $pRow)->getFont()->setBold(true);
+    $this->excel->getActiveSheet()->getStyleByColumnAndRow($pColumn, $pRow)->applyFromArray(
+        array('borders' => array('allborders' => array('style' => PHPExcel_Style_Border::BORDER_THIN))));
+    $pColumn++;
+}
+$pRow++;
+foreach ($this->data as $row) {
+    $pColumn = 0;
+    foreach ($row->columns as $entry) {
+       $this->excel->getActiveSheet()->setCellValueExplicitByColumnAndRow($pColumn, $pRow, $entry);
+        $this->excel->getActiveSheet()->getStyleByColumnAndRow($pColumn, $pRow)->applyFromArray(
+            array('borders' => array('allborders' => array('style' => PHPExcel_Style_Border::BORDER_THIN))));
+        $pColumn++;
+    }
+    $pRow++;
+}
+
+$this->title = 'Contact-Details-' . ucfirst($this->media) . '-Step-' . $this->stepId;

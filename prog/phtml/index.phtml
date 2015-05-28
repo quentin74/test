@@ -1,0 +1,142 @@
+<script type="text/javascript">
+    $(function() {
+
+        <?php if ($this->hasAccess('monitoringConsumption')) :?>
+
+        // Budget : return informations
+        function displayBudget(element)
+        {
+            var target = $(element.target).attr("href"); // activated tab
+            var remoteUrl = $(element.target).data('tab-remote') + '/year/' + $("#current-year").html(); // ajax-url
+            $(target).html('<p style="text-align: center;"><br /><span class="fa fa-spin fa-circle-o-notch"></span>' +
+                    '&nbsp;<?php echo $this->translate("calculation in progress");?> ... <?php echo $this->translate("this can take a few minutes");?></p>');
+            $.ajax({
+                type: "GET",
+                url: remoteUrl,
+                error: function(){
+                    $(target).html("<?php echo $this->translate('Cannot load this tab'); ?>");
+                },
+                success: function(data) {
+                    // Return no information
+                    if ($.isEmptyObject(data) || data.length === 0) {
+                        $(target).html('<p style="text-align: center;" class="center info"><?php echo
+                        ucfirst($this->translate("no campaign in this period"));?></p>');
+                        return;
+                    }
+                    // Return details for selected month
+                    var str = "";
+                    for (var key in data) {
+                        str += '<tr><td>' + data[key]['id'] + '</td><td>' + data[key]['date'] + '</td><td>' +
+                                data[key]['campaign'] + '</td><td class="media">' +
+                                data[key]['<?php echo Service_Api_Object_Message::SMS;?>'] +
+                                '</td><td class="media">' +
+                                data[key]['<?php echo Service_Api_Object_Message::EMAIL;?>'] +
+                                '</td><td class="media">' +
+                                data[key]['<?php echo Service_Api_Object_Message::VOICE;?>'] +
+                                '</td><td class="media">' +
+                                data[key]['<?php echo Service_Api_Object_Message::VOICEMAIL;?>'] + '</td></tr>';
+                    }
+                    $(target).html('<table class="budget-table"><thead><tr><th><?php
+                    echo $this->translate('Id');?></th><th><?php
+                    echo ucfirst(addslashes($this->translate('execution date')));?></th><th><?php
+                    echo ucfirst($this->translate('campaign'));?></th><th class="media"><?php
+                    echo strtoupper($this->translate(Service_Api_Object_Message::SMS));?></th><th class="media"><?php
+                    echo ucfirst($this->translate(Service_Api_Object_Message::EMAIL));?></th><th class="media"><?php
+                    echo ucfirst($this->translate(Service_Api_Object_Message::VOICE));?></th><th class="media"><?php
+                    echo ucfirst($this->translate(Service_Api_Object_Message::VOICEMAIL));?></th></thead></tr><tbody>' +
+                                                str + '</tbody></table>');
+                    $('#export-budget').show();
+                }
+            });
+        }
+
+        // Budget : display tab with current month
+        $('.myModal').on('show.bs.modal', function (e) {
+            $("ul.nav-tabs").find("li:eq(<?php echo (int) $this->month;?>) a").tab('show');
+        });
+
+        // Budget : select a month
+        $('ul.nav-tabs a[data-toggle="tab"]').on('show.bs.tab', function (e) {
+            $('#export-budget').hide();
+            displayBudget(e);
+        });
+
+        // Budget : export for a month
+        $('#export-budget').click(function(e) {
+            e.preventDefault();
+            document.location = $("#budget-modal").find("li.active a").data("tab-remote") + '/year/' +
+                    $("#current-year").html() + '/export/true';
+        });
+
+        // Budget : display previous year
+        $('#previous-year').click(function(e) {
+            $(this).find("span").html(parseInt($(this).find("span").html())-1);
+            $("#current-year").html(parseInt($('#current-year').html())-1);
+            $('#next-year').find("span").html(parseInt($('#next-year').find("span").html())-1);
+            $('ul.nav-tabs li.active a[data-toggle="tab"]').trigger('show.bs.tab');
+        });
+
+        // Budget : display next year
+        $('#next-year').click(function(e) {
+            $(this).find("span").html(parseInt($(this).find("span").html())+1);
+            $("#current-year").html(parseInt($('#current-year').html())+1);
+            $('#previous-year').find("span").html(parseInt($('#previous-year').find("span").html())+1);
+            $('ul.nav-tabs li.active a[data-toggle="tab"]').trigger('show.bs.tab');
+        });
+        <?php endif;?>
+
+    });
+</script>
+
+<!-- Start Campaign list -->
+<div ng-app="Campaign.Editor">
+    <div ng-view="" ng-init='urlsCreation = <?php echo $this->urlsCreation; ?>'></div>
+</div>
+
+<!-- Modal budget -->
+<?php
+if ($this->hasAccess('monitoringConsumption')) :
+    $locale = new Zend_Locale();
+    $date = new Zend_Date();
+    $thisYear = $date->get(Zend_Date::YEAR_8601);
+    $date->subMonth(1);
+    $monthlist = $locale->getTranslationList('months', 'fr_FR');
+    ?>
+    <div class="modal fade myModal" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true" id="budget-modal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span></button>
+                    <h1 class="modal-title" id="myModalLabel"><?php echo ucfirst($this->translate("monitoring consumption")); ?>&nbsp;<span id="current-year"><?php echo $thisYear;?></span>
+                    <span class="ss-titre"><?php echo ucfirst($this->translate("see details of your monthly consumption"))?></span></h1>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs nav-pills" role="tablist">
+                        <li class="previous"><a href="#" id="previous-year"><i class="fa fa-angle-double-left"></i>&nbsp;<span><?php echo $thisYear-1;?></span></a></li>
+                        <?php
+                        foreach ($monthlist['format']['abbreviated'] as $indice => $m) {
+                            echo '<li><a href="#M' . $indice . '" role="tab" data-toggle="tab" data-tab-remote="' .
+                                $this->href('ajax-budget') . '/month/' . $indice . '">' .
+                                ucfirst($m) . '</a></li>';
+                        }?>
+                        <li class="next"><a href="#" id="next-year"><span><?php echo $thisYear+1;?></span>&nbsp;<i class="fa fa-angle-double-right"></i></a></li>
+                    </ul>
+                    <!-- Tab panes -->
+                    <div class="tab-content">
+                        <?php foreach ($monthlist['format']['abbreviated'] as $indice => $month) :?>
+                        <div class="tab-pane" data-month="<?php echo $indice;?>" id="M<?php echo $indice;?>"></div>
+                        <?php endforeach;?>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="export-budget" class="btn btn-primary">
+                        <i class="fa fa-upload"></i> <?php echo $this->translate('Export');?></button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">
+                        <?php echo $this->translate('Close');?></button>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php endif;?>

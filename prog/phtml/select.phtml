@@ -1,0 +1,45 @@
+<?php
+/**
+ * select.phtml
+ *
+ * LICENCE
+ *
+ * L'ensemble de ce code relève de la législation française et internationale
+ * sur le droit d'auteur et la propriété intellectuelle. Tous les droits de
+ * reproduction sont réservés, y compris pour les documents téléchargeables et
+ * les représentations iconographiques et photographiques. La reproduction de
+ * tout ou partie de ce code sur quelque support que ce soit est formellement
+ * interdite sauf autorisation écrite émanant de la société DIGITALEO.
+ *
+ * PHP Version 5.3
+ *
+ * @category Digitaleo
+ * @package  Application.Module.Company.Views.Campaign
+ * @author   Delia TSS-INGA <dstinga@digitaleo.com>
+ * @license  http://www.digitaleo.net/licence.txt Digitaleo Licence
+ * @link     http://www.digitaleo.net
+ */
+?>
+
+<script type='text/javascript'>
+    $(function() {
+        $('.media-cell', $('#media-choice')).click(function() {
+            $('#ajax-loading').show();
+            window.location.href = $(this).data('url');
+        });
+    });
+</script>
+
+<div id="media-choice">
+    <?php
+    foreach ($this->typeData as $type => $url) :
+        $classname = (!empty($url)) ? 'media-cell' : 'media-cell-inactive';
+    ?>
+        <div id="campaign-type-select" class="<?php echo $classname;?> campaign-type-<?php echo $type; ?>"
+             data-type="<?php echo $type; ?>" data-url="<?php echo $url; ?>">
+            <div class="transition-layout">&nbsp;</div>
+            <p class="media-name"><?php echo ucfirst($this->translate('campaign.type.name.' . $type)); ?></p>
+            <p class="media-desc"><?php echo ucfirst($this->translate('campaign.type.description.' . $type)); ?></p>
+        </div>
+    <?php endforeach; ?>
+</div>

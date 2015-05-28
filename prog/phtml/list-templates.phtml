@@ -1,0 +1,128 @@
+<?php
+/**
+ * list-templates.phtml
+ *
+ * PHP Version 5.3
+ *
+ * LICENCE
+ *
+ * L'ensemble de ce code relève de la législation française et internationale
+ * sur le droit d'auteur et la propriété intellectuelle. Tous les droits de
+ * reproduction sont réservés, y compris pour les documents téléchargeables et
+ * les représentations iconographiques et photographiques. La reproduction de
+ * tout ou partie de ce code sur quelque support que ce soit est formellement
+ * interdite sauf autorisation écrite émanant de la société DIGITALEO.
+ *
+ * @category Digitaleo
+ * @package  Application.Module.Company.Views.Campaign
+ * @author   Digitaleo <developpement@digitaleo.com>
+ * @license  http://www.digitaleo.net/licence.txt Digitaleo Licence
+ * @link     http://www.digitaleo.net
+ */
+?>
+<h1><?php echo ucfirst($this->translate('available campaign templates')) ?></h1>
+
+<!-- Liste des modèles -->
+<div class="box">
+    <div class="box-header">
+        <h3><?php echo ucfirst($this->translate('campaign templates'));?></h3>
+    </div>
+    <div class="box-body">
+        <table class="table table-bordered" id="liste" cellspacing="0" cellpadding="0">
+    <thead>
+       
+        <tr class="entete">
+            <th><?php echo ucfirst($this->translate('name')); ?></th>
+            <th><?php echo ucfirst($this->translate('advices')); ?></th>
+            <th><?php echo ucfirst($this->translate('steps')); ?></th>
+            <th><?php echo ucfirst($this->translate('medias')); ?></th>
+            <th>&nbsp;</th>
+        </tr>
+    </thead>
+
+    <tfoot>
+        <?php if ($this->paginator->getTotalItemCount() > 1) : ?>
+            <tr>
+                <td colspan="10" class="center"><?php echo $this->paginator ?></td>
+            </tr>
+        <?php endif; ?>
+    </tfoot>
+
+    <tbody>
+        <?php
+        if ($this->paginator->getTotalItemCount() > 0):
+            ?>
+            <?php $i = 0; ?>
+            <?php foreach ($this->paginator as $entry) : ?>
+                <?php $cssClass = ($i++ % 2) ? "even" : "odd"; ?>
+                <tr class="<?php echo $cssClass ?>">
+                    <td><?php echo $entry->name;?></td>
+                    
+                    <td>
+                        <?php if (!is_null($entry->advice)) : ?>
+                            <span class="template-advice" 
+                                  data-toggle="tooltip" 
+                                  data-original-title="<?php echo $entry->advice; ?>"><?php
+                                $length = 70;
+                                echo substr($entry->advice, 0, $length) . (strlen($entry->advice) > $length?'...':'');
+                            ?></span>
+                        <?php endif; ?>
+                    </td>
+                    
+                    <td><?php echo $entry->stepCount; ?></td>
+
+                    <td>
+                        <?php
+                        $toolInfo = "";
+                        foreach ($this->templatesMediaData[$entry->id]['medias'] as $media) :
+                            $toolInfo .= "<img style='opacity:1;height:30px'";
+                            $toolInfo .= " src='/pictures/layout/pic-dashboard-perf-$media.png'";
+                            $toolInfo .= " class='media-icon'";
+                            $toolInfo .= " data-media='$media' title='{$this->translate($media)}' />";
+                        endforeach; ?>
+                        <span class="medias-count-tooltip" 
+                              data-html="true" 
+                              data-toggle="tooltip" 
+                              title="<?php echo $toolInfo; ?>"><?php 
+                              echo $this->templatesMediaData[$entry->id]['mediaCount']; 
+                        ?></span>
+                    </td>
+                    <td>
+                        <?php $createLabel = ucfirst($this->translate('create a new campaign with this template'));?>
+                        <a title="<?php echo $createLabel; ?>" href="<?php
+                        echo $this->href(
+                            'campaign-from-template',
+                            array(
+                                'templateId' => $entry->id,
+                                'listId' => $this->listId,
+                                'campaignName' => $this->campaignName
+                            )
+                        );
+                        ?>" class="btn btn-default pull-right"><i
+                                class="fa fa-user"></i> <?php echo ucfirst($this->translate('create a new campaign')); ?>
+
+                        </a>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <tr class="even">
+                <td colspan="10" class="center info"><?php echo ucfirst($this->translate('no campaign template')); ?></td>
+            </tr>
+        <?php endif; ?>
+    </tbody>
+</table>
+    </div>
+    
+</div>
+
+
+
+<?php $this->headScript()->captureStart(); ?>
+
+$('document').ready(function(){
+        $('.template-advice').tooltip();
+        $('.medias-count-tooltip').tooltip();
+});
+
+<?php $this->headScript()->captureEnd(); ?>

@@ -1,0 +1,159 @@
+
+<project name="processor" default="compress" basedir="../../">
+ <!-- Chemin des repertoires dans l'application -->
+    <property name="src.absolute" location="application/" />
+    <property name="src.relative" location="${src.absolute}" relative="true" />
+    <property name="translation.dir" location="data/locales/"/>
+    <property name="public.dir" location="public/" relative="true"/>
+    <property name="scripts.dir" location="${public.dir}/scripts" relative="true"/>
+    <property name="styles.dir" location="${public.dir}/styles" relative="true"/>
+    
+<!--    <property name="docs.dir" location="/Users/greg/Dropbox/Digitaleo/docs/v2.marketeo.net" relative="true"/>-->
+ 
+  <!-- Chemin des applications & librairie utilisées -->
+    <property name="application.path.xgettext" location="/sw/bin/xgettext"/>
+    <property name="application.path.msgfmt" location="/sw/bin/msgfmt"/>
+    <taskdef resource="net/sf/antcontrib/antcontrib.properties">
+        <classpath>
+            <pathelement location="scripts/build/ant-contrib-0.6.jar"/>
+        </classpath>
+    </taskdef>
+ 
+    <!-- Locale à générer -->
+    <property name="locale.list" value="fr_FR,en_GB"/>
+    <!-- Locale à générer -->
+    <property name="grouping.pattern" value="marketeo"/>
+ 
+  <!-- Fichiers JS && CSS-->
+    <property name="marketeo.src.js" location="${scripts.dir}/marketeo.js"/>
+    <property name="marketeo.min.src.js" location="${scripts.dir}/marketeo.min.js"/>
+    <property name="marketeo.src.css" location="${styles.dir}/marketeo.css"/>
+    <property name="marketeo.min.src.css" location="${styles.dir}/marketeo.min.css"/>
+ 
+  <!-- DEFINITION DES TASKS -->
+ 
+  <!-- Construction des fichiers CSS, JS minifié, regeneration des fichiers de trad-->
+    <target name="all" depends="clean.php.closure,compress, translate.generation.all" ></target>
+    
+  <!-- INITIALISATION -->
+    <target name="init.translate" description="Initialisation du script, creation des répertoires">
+        <mkdir dir="${translation.dir}"/>
+    </target>
+
+    <!-- Generation des fichiers po pour tous les fichiers d'un repertoire -->
+    <target name="translate.extraction.all" description="Extraction des chaine à traduire et generation des fichiers PO">
+        <for param="file" >
+            <path >
+                <fileset dir="${src.relative}">
+                    <include name="**/*.php"/>
+                    <include name="**/*.phtml"/>
+                </fileset>
+            </path>
+            <sequential>
+                <echo message="Traitement du fichier @{file} pour les locales ${locale.list}"/>
+                <for list="${locale.list}" param="locale.use">
+                    <sequential>
+                        <antcall target="translate.extraction.file">
+                            <param name="file" value="@{file}"/>
+                            <param name="locale" value="@{locale.use}"/>
+                        </antcall>
+                    </sequential>
+                </for>
+            </sequential>
+        </for>
+    </target>
+    
+    <!-- Generation des fichiers mo pour tous les fichiers d'un repertoire -->
+    <target name="translate.generation.all" description="Generation des fichiers mo">
+        <for param="file" >
+            <path >
+                <fileset dir="${translation.dir}">
+                    <include name="**/*.po"/>
+                </fileset>
+            </path>
+            <sequential>
+                <antcall target="translate.generation.file">
+                    <param name="file" value="@{file}"/>
+                </antcall>
+            </sequential>
+        </for>
+    </target>
+    <!-- Convertion un fichier PO en MO-->
+    <target name="translate.generation.file" description="Converti un fichier PO en MO">
+        <basename property="filename" file="${file}" suffix=".po" />
+        <echo message="Traitement du fichier ${filename}.po"/>
+        <exec executable="/sw/bin/msgfmt">
+            <arg value="-v"/>
+            <arg value="${translation.dir}/${filename}.po"/>
+            <arg value="-o"/>
+            <arg value="${translation.dir}/${filename}.mo"/>
+        </exec>
+    </target>
+ 
+    <!-- Generation du fichier po pour le fichier spécifié dans ${file} pour la locale spécifié dans ${locale} -->
+    <target name="translate.extraction.file" description="Generation du fichier po pour le fichier spécifié dans ${file} pour la locale spécifié dans ${locale}" >
+        <property name="path" location="${file}" relative="true" />
+        <touch file="${translation.dir}/${locale}.po"/>
+        <exec executable="/sw/bin/xgettext">
+            <arg value="--language=php"/>
+            <arg value="--keyword=translate"/>
+            <arg value="--from-code=UTF-8"/>
+            <arg value="--no-wrap"/>
+            <arg value="--join-existing"/>
+            <arg value="--no-location"/>
+            <arg value="--output=${translation.dir}/${locale}.po"/>
+            <arg value="${path}"/>
+        </exec>
+    </target>
+ 
+ <!-- Compression du fichier JS && CSS -->
+    <target name="compress" description="Compression du fichier JS" >
+        <echo message="Compression du fichier ${marketeo.src.js} dans ${marketeo.min.src.js}"/>
+        <java jar="build/yuicompressor-2.4.jar" fork="true" failonerror="true" maxmemory="128m" >
+            <arg value="--charset"/>
+            <arg value="utf-8"/>
+            <arg value="--type"/>
+            <arg value="js"/>
+            <arg value="${marketeo.src.js}"/>
+            <arg value="-o"/>
+            <arg value="${marketeo.min.src.js}"/>
+        </java>
+        
+        <concat destfile="${styles.dir}/${grouping.pattern}.css" force="yes">
+            <fileset dir="${styles.dir}/dev"  includes="**/${grouping.pattern}-*.css"/>
+        </concat>
+            
+        <java jar="build/yuicompressor-2.4.jar" fork="true" failonerror="true" maxmemory="128m" >
+            <arg value="--charset"/>
+            <arg value="utf-8"/>
+            <arg value="--type"/>
+            <arg value="css"/>
+            <arg value="${styles.dir}/${grouping.pattern}.css"/>
+            <arg value="-o"/>
+            <arg value="${styles.dir}/${grouping.pattern}.min.css"/>
+        </java>
+    </target>
+    
+    <!-- Tache de nettoyage des balises fermante PHP "?>" dans les fichiers PHP -->
+    <target name="clean.php.closure" description="Tache de nettoyage des balises fermante PHP ?> dans les fichiers PHP">
+        <replaceregexp byline="true">
+            <regexp pattern="\?\>$"/>
+            <substitution expression=""/>
+            <fileset dir="${basedir}">
+                <include name="**/*.php"/>
+            </fileset>
+        </replaceregexp>
+    </target>
+    
+    <!-- Tache de Generation de la phpdoc -->
+<!--    <target name="phpdoc.generate" description="Tache de generation de la phpdoc">
+        <exec executable="/usr/bin/phpdoc">
+            <arg value="-d"/>
+            <arg value="${src.relative}"/>
+            <arg value="-d"/>
+            <arg value="${basedir}/library"/>
+            <arg value="-t"/>
+            <arg value="${docs.dir}"/>
+        </exec>
+    </target>-->
+</project>

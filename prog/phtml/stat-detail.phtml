@@ -1,0 +1,276 @@
+<?php
+/**
+ * stat-detail.phtml
+ *
+ * LICENCE
+ *
+ * L'ensemble de ce code relève de la législation française et internationale
+ * sur le droit d'auteur et la propriété intellectuelle. Tous les droits de
+ * reproduction sont réservés, y compris pour les documents téléchargeables et
+ * les représentations iconographiques et photographiques. La reproduction de
+ * tout ou partie de ce code sur quelque support que ce soit est formellement
+ * interdite sauf autorisation écrite émanant de la société DIGITALEO.
+ *
+ * PHP Version 5.3
+ *
+ * @category Digitaleo
+ * @package  Application.Modules.Frontoffice.Views.Campaign
+ * @author   Digitaleo <developpement@digitaleo.com>
+ * @license  http://www.digitaleo.net/licence.txt Digitaleo Licence
+ * @link     http://www.digitaleo.net
+ */
+
+?>
+
+<script type="text/javascript">
+    $(document).ready(function(){
+        /* number of elements per page */
+        $('.ajax-paginator select').live('change', function(event) {
+            event.preventDefault();
+            var url = window.location.href;
+            if (url.match(/\/perPage\//)) {
+                url = url.replace(/\/perPage\/[0-9]*/, '');
+            }
+            window.location.href = url + '/perPage/' + $(this).children('option:selected').val();
+        });
+
+        $('#status').live('change', function(){
+            if($(this).val() !== '<?php echo Service_Api_Object_Message::STATUS_CLICKED; ?>'){
+                $('#linkPosition').val('');
+                // cacher/afficher le select des liens quand on passe le statut à clicked ou pas.
+                $('#linkPositionLine').hide();
+            }else{
+                $('#linkPositionLine').show();
+            }
+        });
+        $('#linkPosition').live('change', function(){
+            if($(this).val() !== ''){
+                $('#status').val('<?php echo Service_Api_Object_Message::STATUS_CLICKED; ?>');
+            }
+        });
+
+        $(".bottom-content-buttons input[type=submit]").click(function() {
+            if ( $(this).data('href')) {
+                window.location.href = $(this).data('href');
+            }
+        });
+
+        // Affichage des réponses
+        $('.views-responses').on('click', function() {
+             var overlayInfos = $(this).parent().parent('td').children('.tooltip-overlay');
+             var content =  overlayInfos.children('.content').html();
+             var title = overlayInfos.children('.title').html();
+             Tools.alert(content,title);
+        });
+    });
+</script>
+<section class="content-header">
+    <i class="fa fa-search fa-2x left mgt5 grey"></i>
+    <h1><?php echo ucfirst($this->translate('campaign details'))?></h1>
+</section>
+<section class="left-col">
+
+
+<form enctype="application/x-www-form-urlencoded"
+      class="backform-filter"
+      action="<?php echo $this->href('campaign-stat-detail', array('campaignId' =>
+                            $this->campaignId, 'stepId' => $this->stepId, 'media' => $this->media)); ?>"
+      method="post" class="mg0">
+    
+    <div class="row form_zone mgt-15 pdb15 bggrey center">
+        <div class="col-md-2"></div>
+        <div class="col-md-2 mgl5 mgr5 bg-white pd10"><i class="fa fa-paper-plane-o"></i> <label><?php echo ucfirst($this->translate('campaign')); ?></label><b><?php echo $this->campaignName; ?></b></div>
+        <div class="col-md-2 mgl5 mgr5 bg-white pd10"><i class="fa fa-paper-plane-o"></i> <label><?php echo ucfirst($this->translate('channel')); ?></label><b><?php echo ucfirst($this->translate($this->media)); ?></b></div>
+    </div>
+    
+     <div class="row form_zone mgt15">
+         <div class="input-group-lm col-md-12 pdb5"><label class="pull-left mgt5"><?php echo ucfirst($this->translate('message status'));?></label><?php echo $this->form->getElement('status');?><?php echo $this->form->getElement('submit');?></div>
+        </div>
+    
+    <fieldset id="fieldset-filter" class="filters">
+        
+       
+        
+        
+        <table style="width: 100%" class="table table-bordered">
+            <tbody>
+
+                <?php if($this->media == Service_Api_Object_Message::EMAIL ) : ?>
+                <tr id="linkPositionLine" <?php if( $this->status != Service_Api_Object_Message::STATUS_CLICKED) {echo 'style="display:none"';} ?>>
+                    <td><?php echo ucfirst($this->translate('Link'));?></td>
+                    <td><?php echo $this->form->getElement('linkPosition'); ?></td>
+                </tr>
+                <?php endif; ?>
+                <tr>
+                    <td>&nbsp;</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </fieldset>
+</form>
+    <div class="box">
+        <div class="body-body">
+            
+<table class="table table-bordered" cellspacing="0" cellpadding="0">
+    <thead>
+        <tr class="entete">
+            <?php if ($this->hasAccess('contactManagement')): ?>
+                <!-- -------------------------- Contact management is allowed -------------------------- -->
+                <th><?php echo ucfirst($this->translate('civility')); ?></th>
+                <th><?php echo ucfirst($this->translate('contact name')); ?></th>
+                <th><?php echo ucfirst($this->translate('contact info')); ?></th>
+                <?php if ($this->media == Service_Api_Object_Message::EMAIL && $this->status == 'optout') : ?>
+                <th><?php echo ucfirst($this->translate('optout reason')); ?></th>
+                <?php endif; ?>
+                <?php if ($this->media == Service_Api_Object_Message::SMS && $this->status == 'rep') : ?>
+                <th><?php echo ucfirst($this->translate('answers')); ?></th>
+                <?php endif; ?>
+                <th colspan="3"></th>
+            <?php else: ?>
+                <!-- ------------------------ Contact management is not allowed ------------------------ -->
+                <th><?php echo ucfirst($this->translate('civility')); ?></th>
+                <th><?php echo ucfirst($this->translate('contact name')); ?></th>
+                <th><?php echo ucfirst($this->translate('contact reference')); ?></th>
+            <?php endif; ?>
+        </tr>
+    </thead>
+    <?php if (count($this->stats) > 0): ?>
+
+    <tfoot class="ajax-paginator">
+        <tr>
+            <td colspan="100" class="center">
+                <?php echo $this->paginationControl($this->stats,
+                   'Sliding',
+                   'ajax_pagination_control.phtml'); ?>
+            </td>
+        </tr>
+    </tfoot>
+
+    <tbody>
+        <?php foreach ($this->statsData as $data) :
+            $firstName = (isset($data['firstName'])) ? $data['firstName'] : '';
+            $lastName = (isset($data['lastName'])) ? $data['lastName'] : '';
+            $civility = (isset($data['civility'])) ? $data['civility'] : '';
+            $reference = (isset($data['reference'])) ? $data['reference'] : '';
+            $name =  $firstName .  ' ' . strtoupper($lastName);
+            ?>
+        <tr class="<?php echo $this->cycle(array('odd', 'even'))->next(); ?>">
+            <?php if ($this->hasAccess('contactManagement')): ?>
+                <!-- -------------------------- Contact management is allowed -------------------------- -->
+                <td><?php echo $civility; ?></td>
+                <td><?php echo $name; ?></td>
+                <td><?php if (isset($data[$this->contactField])) : echo $data[$this->contactField]; endif; ?></td>
+                <?php if ($this->media == Service_Api_Object_Message::EMAIL && $this->status == 'optout') : ?>
+                <td><?php echo isset($data['status']['detail']['optoutReason']) ?
+                        $data['status']['detail']['optoutReason'] : '-'; ?></td>
+                <?php endif; ?>
+                <?php if ($this->media == Service_Api_Object_Message::SMS && $this->status == 'rep') : ?>
+                <td>
+                    <?php
+                        $messages = $data['status']['detail'];
+                        if (count($messages)) {
+                            echo $messages[0]->message;
+                        }
+                    ?>
+                    <?php if (count($messages) > 1) : ?>
+                    <span>
+                        <a
+                            class="views-responses"
+                            href="#"
+                            title="<?php echo ucfirst($this->translate("this contacts has several answers")); ?>">
+                            <img
+                                src="/pictures/buttons/overview.png"
+                                title="<?php echo ucfirst($this->translate("this contacts has several answers")); ?>"
+                                alt="<?php echo ucfirst($this->translate("this contacts has several answers")); ?>" />
+                        </a>
+                    </span>
+                    <div class="tooltip-overlay">
+                        <div class="title"><?php echo ucfirst($this->translate("answers contact")); ?></div>
+                        <div class="content">
+                            <?php
+                            $i=1;
+                            foreach ($data['status']['detail'] as $info) {
+                                echo '<b>Réponse ' . $i . ' :</b> ' . $info->message . '<br />';
+                                $i++;
+                            }
+                            ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </td>
+                <?php endif; ?>
+                <?php if (!$data['isMock']) : ?>
+                    <td align="right">
+                        <?php if ($this->pageAccess('campaign-contact-view')):
+                            echo $this->button(
+                                'campaign-contact-view',
+                                "edit.png",
+                                array('url-options' => array(
+                                    'campaignId' => $this->campaignId,
+                                    'stepId'     => $this->stepId,
+                                    'media'      => $this->media,
+                                    'contactId'  => $data['id']
+                                    )
+                                )
+                            );
+                        endif; ?>
+                    </td>
+                <?php else : ?>
+                    <td align="right">
+                        <img title="<?php echo $this->translate('Edit'); ?>"
+                                 src="/pictures/buttons/edit-disabled.png" />
+                    </td>
+                <?php $disableCreateList = true; ?>
+                <?php endif; ?>
+            <?php else: ?>
+                <!-- ------------------------ Contact management is not allowed ------------------------ -->
+                <td><?php echo $civility; ?></td>
+                <td><?php echo $name; ?></td>
+                <td><?php echo $reference; ?></td>
+            <?php endif; ?>
+        </tr>
+    <?php  endforeach; ?>
+    </tbody>
+<?php endif; ?>
+</table>
+
+        </div>
+    </div>
+<div class="bottom-content-buttons">
+    <ul>
+        <li>
+<!--            <a href="<?php echo $this->backUrl;?>" class="back-button btn btn-default" ><?php echo ucfirst($this->translate('back'));?></a>-->
+            <button onclick="window.location.href='<?php echo $this->backUrl;?>'" class="btn btn-default"><i class="fa fa-angle-double-left"></i> <?php echo ucfirst($this->translate('back'));?></button>
+        </li>
+        <?php if (isset($disableCreateList) && $disableCreateList) : ?>
+            <li>
+                <button class="save-button btn btn-primary disable"><i class="fa fa-download"></i> <?php echo ucfirst($this->translate('export'));?></button>
+            </li>
+        <?php else : ?>
+            <?php if ($this->hasAccess('exportContact')) : ?>
+             <li>
+                <button class="save-button btn btn-primary" onclick="window.location.href='<?php echo $this->exportUrl;?>'"><i class="fa fa-download"></i> <?php echo ucfirst($this->translate('export'));?></button>
+            </li>
+            <?php endif; ?>
+        <?php endif; ?>
+        <?php if ((count($this->stats) && ($this->hasAccess('contactManagement'))) > 0) : ?>
+        <li>
+            <?php if (isset($disableCreateList) && $disableCreateList) : ?>
+                <button class="disable btn btn-primary"  onclick="window.location.href='<?php echo $this->exportUrl;?>'"><i class="fa fa-list"></i> <?php echo ucfirst($this->translate('create list from these contacts'));?></button>
+            <?php else : ?>
+                <?php
+                 $url=$this->href('create-list-from-stats',array( 'campaignId'    => $this->campaignId,
+                        'stepId'        => $this->stepId,
+                        'media'         => $this->media,
+                        'campaignName'  => urlencode($this->campaignName),
+                        'status'        => $this->status,
+                        'linkPosition'  => $this->linkPosition));                                        
+		echo "<a href='".$url."' class='btn btn-primary'><i class='fa fa-list'></i>" .ucfirst($this->translate('create list from these contacts'))."</a>"   
+                ?>       
+            <?php endif; ?>
+       </li>
+       <?php endif; ?>
+   </ul>
+</div>
+</section>

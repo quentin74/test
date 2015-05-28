@@ -1,0 +1,917 @@
+<?php
+/**
+ * edit.phtml
+ *
+ * PHP Version 5.3
+ *
+ * LICENCE
+ *
+ * L'ensemble de ce code relève de la législation française et internationale
+ * sur le droit d'auteur et la propriété intellectuelle. Tous les droits de
+ * reproduction sont réservés, y compris pour les documents téléchargeables et
+ * les représentations iconographiques et photographiques. La reproduction de
+ * tout ou partie de ce code sur quelque support que ce soit est formellement
+ * interdite sauf autorisation écrite émanant de la société DIGITALEO.
+ *
+ * @category Application
+ * @package  Application.Modules.Company.Views.Scripts.Campaign
+ * @author   Delia STINGA <dstinga@digitaleo.com>
+ * @license  http://www.digitaleo.net/licence.txt Digitaleo Licence
+ * @link     http://www.digitaleo.net
+ */
+/* @var $form Zend_Form */
+$form = $this->form;
+$contactCustomFieldUrl = $this->Href('custom-field', array('section' => 'contact', 'campaignId' => $this->campaignId));
+?>
+
+<script type='text/javascript'>
+    // Récupération du tableau (ids des listes, nombre de contacts)
+    var contactLists = <?php echo json_encode($this->lists) ?>;
+
+    /**
+     * Displaying a popup with Fotolia thumbnails images for validation
+     *
+     * @returns boolean
+     */
+    function displayFotoliaOverview() {
+
+        // Loading Fotolia images details
+        Tools.confirmFotoliaImages(
+            "<?php echo ucfirst($this->translate('validation of your buying of Fotolia images')); ?>",
+            "<?php echo $this->href('ajax-fotolia-detail', array('campaignId' => $this->campaignId)); ?>",
+            function (res) {
+                canConfirmCampaign = res;
+            }
+        );
+    }
+
+    /**
+     * Editeur de la campagne
+     */
+    CampaignEditor.init({
+        contactCustomFieldsUrl: '<?php echo $contactCustomFieldUrl; ?>'
+    });
+
+    // Show alert if confirm message
+
+    /**
+     * CAMPAIGN CONFIRM
+     */
+    $('#confirm-campaign').live('click', function (event) {
+        event.preventDefault();
+        var canConfirm = true;
+        var confirmUrl = Translations.base_url + $(this).data('href');
+        var campaignHasPushChannels = "<?php echo $this->campaignHasPushChannels ?>";
+        var campaignHasValidDate = "<?php echo $this->campaignHasValidDate ?>";
+        var campaignHasValidReplyTo = "<?php echo $this->campaignHasValidReplyTo; ?>";
+        var campaignHasValidMessageSubject = "<?php echo $this->campaignHasValidMessageSubject; ?>";
+        var campaignInvalidMessages = <?php echo json_encode($this->campaignInvalidMessages); ?>;
+        var campaignFirstMessageDate = '<?php echo $this->campaignFirstMessageDate; ?>';
+
+        // verifying that a list of contacts has been chosen if campaign has at least one PUSH media
+        if (campaignHasPushChannels != 0) {
+            if ($('#contactListExtId').val() == 0) {
+                canConfirm = false;
+                Tools.alert(
+                    "<?php echo ucfirst($this->translate('cannot confirm campaign, invalid contact list')); ?>",
+                    Translations.title_dialog_info);
+                return false;
+            }
+            else {
+                if (getListNbCntacts() == 0) {
+                    canConfirm = false;
+                    Tools.alert(
+                        "<?php echo ucfirst($this->translate('cannot confirm campaign, no countact found')); ?>",
+                        Translations.title_dialog_info);
+                    return false;
+                }
+            }
+        }
+
+        // demo contract case
+        if (<?php echo $this->contractIsDemo; ?> &&
+        contactLists[$('#contactListExtId').val()]['isDemo']
+        )
+        {
+            canConfirm = false;
+            Tools.alert("<?php echo ucfirst($this->translate('cannot confirm campaign, contact list is demo type')); ?>",
+                Translations.title_dialog_info);
+            return false;
+        }
+
+        // invalid date
+        if (campaignHasValidDate == 0) {
+            canConfirm = false;
+            Tools.alert(
+                "<?php echo ucfirst($this->translate('cannot confirm campaign, invalid execution date')); ?>",
+                Translations.title_dialog_info);
+            return false;
+        }
+
+        // invalid replyTo field
+        if (campaignHasValidReplyTo == 0) {
+            canConfirm = false;
+
+            var stepText = "<?php
+echo ucfirst($this->translate(
+        'cannot confirm campaign, invalid email reply to field for step'));
+?>";
+            var stepsText = "<?php
+echo ucfirst($this->translate(
+        'cannot confirm campaign, invalid email reply to field for steps'));
+?>";
+            var text = '';
+            if (campaignInvalidMessages.length == 1) {
+                text = stepText + ' ' + campaignInvalidMessages[0];
+            } else if (campaignInvalidMessages.length > 0) {
+                text = stepsText + ' ';
+
+                $.each(campaignInvalidMessages, function (index, value) {
+                    text += value + ', ';
+                });
+                text = text.slice(0, text.length - 2);
+            }
+            Tools.alert(text, Translations.title_dialog_info);
+        }
+        // invalid message subject
+        if (campaignHasValidMessageSubject == 0) {
+            canConfirm = false;
+
+            var stepText = "<?php
+echo ucfirst($this->translate(
+        'cannot confirm campaign, invalid email subject for step'));
+?>";
+            var stepsText = "<?php
+echo ucfirst($this->translate(
+        'cannot confirm campaign, invalid email subject for steps'));
+?>";
+            var text = '';
+            if (campaignInvalidMessages.length == 1) {
+                text = stepText + ' ' + campaignInvalidMessages[0];
+            } else if (campaignInvalidMessages.length > 0) {
+                text = stepsText + ' ';
+
+                $.each(campaignInvalidMessages, function (index, value) {
+                    text += value + ', ';
+                });
+                text = text.slice(0, text.length - 2);
+            }
+            Tools.alert(text, Translations.title_dialog_info);
+        }
+
+        // Invalid SMS content
+        if ("<?php echo $this->campaignHasValidSms ?>" == 0) {
+            canConfirm = false;
+            Tools.alert(
+                "<?php echo ucfirst($this->translate('cannot confirm campaign, SMS content is not valid')); ?>.",
+                Translations.title_dialog_info);
+        }
+        // Invalid SMS TPOA / Reponses
+        if ("<?php echo $this->campaignInvalidSmsParams ?>" == 1) {
+            canConfirm = false;
+            Tools.alert(
+                "<?php echo ucfirst($this->translate('cannot confirm campaign, customized TPOA AND responses management are not compatible')); ?>.",
+                Translations.title_dialog_info);
+        }
+        // Invalid campaign on sunday
+        if ("<?php echo $this->campaignIsOnSunday ?>" == 1 &&
+            "<?php echo $this->hasAccess('createCampaignOnSunday') ? 1 : 0; ?>" != 1) {
+            canConfirm = false;
+            Tools.alert(
+                "<?php echo ucfirst($this->translate('cannot confirm campaign on sunday')); ?>.",
+                Translations.title_dialog_info);
+        }
+
+        if (canConfirm == true) {
+
+            var dateStartInfo = '';
+            var dNow = new Date();
+            var confirmText = '';
+
+
+            if (campaignFirstMessageDate !== '' && parseInt(campaignFirstMessageDate) >= dNow.getTime()) {
+                dateStartInfo = '<?php
+echo $this->translate("on %s at %s", $this->firstMessageDay, $this->firstMessageTime);
+?>';
+            } else {
+                dateStartInfo = '<?php echo $this->translate("as soon as possible"); ?>';
+            }
+
+            // on a besoin de la date de début pour construire le message d'info
+            confirmText = '<p><?php echo ucfirst($this->translate('confirm confirm campaign')); ?></p>' +
+            '<p><?php echo ucfirst($this->translate('your campaign will start')); ?> ' + dateStartInfo +
+            '.</p>';
+
+            <?php // dans le cas d'un utilisateur web, on change le message de confirmation de campagne
+            if ($this->contractIsWeb):
+                ?>
+            confirmText = '<p><?php echo ucfirst($this->translate('your campaign will start')); ?> ' +
+            dateStartInfo + ' <?php echo $this->translate('after payment'); ?>.</p>' +
+            "<p><?php echo ucfirst($this->translate('confirm campaign ?')); ?></p>";
+            <?php endif ?>
+            <?php // si le contrat n'est pas complet on ne confirme pas la campagne tout de suite mais on envoie l'utilisateur
+            /// vers la page lui permettant de renseigner ses informations
+            if ($this->contractIsWeb && !$this->contractIsComplete) : ?>
+            var url = '<?php echo $this->nextStepUrl; ?>';
+            Tools.confirm(confirmText, Translations.title_dialog_confirm, url, true);
+            <?php else : ?>
+            Tools.confirmCampaignAjax(
+                confirmText,
+                Translations.title_dialog_confirm,
+                confirmUrl,
+                function (result) {
+                    if (result.status) {
+                        if (result.url) {
+                            window.location.replace(result.url);
+                        } else {
+                            window.location.replace("<?php
+    echo $this->href('campaign-list', array('status' => Service_Api_Object_Campaign::STATUS_CONFIRMED));
+    ?>");
+                        }
+                    } else {
+                        Tools.alert(result.message, Translations.title_dialog_info);
+                    }
+                },
+                "<?php echo $this->href('ajax-fotolia-detail', array('campaignId' => $this->campaignId)); ?>"
+            );
+            <?php endif; ?>
+        }
+    });
+
+    // Unit costs per media
+    var mediaCosts = <?php echo json_encode($this->mediaCosts); ?>;
+
+    // Save campaign informations
+    function saveCampaign() {
+        var params = {};
+        params['campaignId'] = <?php echo $this->campaignId ?>;
+        params['name'] = $('#name').val();
+        params['contactListExtId'] = $('#contactListExtId').val();
+        params['comment'] = $('#comment').val();
+
+        $('#ajax-loading').show();
+        $(".costEstimate").empty();
+        $.post(
+            "<?php echo $this->href('ajax-save'); ?>",
+            params,
+            function (data) {
+                if ($('#contactListExtId').val() != 0) {
+                    <?php if ($this->contractIsWeb) : ?>
+                    $("#checkCost").hide();
+                    emptyMessageDatas();
+                    checkCost();
+                    <?php else : ?>
+                    $("#checkCost").show();
+                    <?php endif ?>
+                } else {
+                    $("#checkCost").hide();
+                    emptyMessageDatas();
+                    $(".costEstimate").html('-');
+                }
+                showListNbContacts();
+                $('#ajax-loading').hide();
+            }
+        );
+    }
+
+    /**
+     * Cost per message
+     */
+    function checkCost() {
+        // Liste courante
+        var contactListExtId = $('#contactListExtId option:selected').val();
+        var contractIsWeb = <?php echo $this->contractIsWeb ? 'true' : 'false'; ?>;
+        if (contractIsWeb === true) {
+            $.ajax({
+                dataType: "json",
+                url: '<?php echo $this->webEstimateUrl; ?>',
+                async: false,
+                data: {
+                    campaignId: <?php echo $this->campaignId; ?>,
+                    contactListExtId: contactListExtId
+                },
+                success: function (data) {
+                    $('.costEstimate').html(data.cost + ' € HT');
+                }
+            });
+        } else {
+            // Récupération des messages
+            var url = "<?php echo $this->Href('ajax-check-cost') ?>" +
+                '/campaignId/<?php echo $this->campaignId ?>/contactListExtId/' + contactListExtId;
+            $.getJSON(url, function (messagesForCosts) {
+
+                loadMessageDatas(messagesForCosts);
+
+                // Récupération des champs variables s'il y en a
+                var contactCustomFields = CampaignEditor.getContactCustomFields();
+                var contactCustomFieldsName = [];
+                for (var parameter in contactCustomFields["#CONTACT-FIELDS#"]["fields"]) {
+                    contactCustomFieldsName.push(parameter);
+                }
+
+                // Ajout du champs variable site mobile
+                contactCustomFieldsName.push('#siteShortUrl#');
+
+                // Parcours des messages
+                var ret = [];
+                for (i = 1; i < contactCustomFieldsName.length; i++) {
+                    var name = contactCustomFieldsName[i];
+                    var regexp = new RegExp(name, 'g');
+                    // Récupération des flags de champs variables
+                    for (var parameter in messagesForCosts) {
+                        if (regexp.test(messagesForCosts[parameter].content) == true) {
+                            ret.push(name.replace(/#/g, ''));
+                        }
+                    }
+                }
+
+                // Calcul des tailles de champs uniquement si champs trouvé dans les messages
+                var max = (ret.length > 0) ? '/maxlength/true' : '';
+                var customFieldUrl = '<?php echo $this->Href('custom-field') ?>' + max;
+                customFieldUrl += '/section/contact/campaignId/<?php echo $this->campaignId ?>';
+
+                $.ajax({
+                    dataType: "json",
+                    url: customFieldUrl,
+                    async: false,
+                    data: {only: ret},
+                    success: function (customField) {
+                        var messagesCosts = MessageLengthInfos.getMessagesCosts({
+                            messages: messagesForCosts,
+                            unitCosts: mediaCosts,
+                            customFields: customField
+                        });
+                        var campaignCost = 0;
+                        $.each(messagesCosts, function (messageId, messageInfos) {
+                            campaignCost = campaignCost + messageInfos.cost;
+                        });
+
+                        /**
+                         * Fotolia cost
+                         */
+                        if (typeof messagesForCosts.fotolia !== 'undefined') {
+                            campaignCost += messagesForCosts.fotolia;
+                        }
+
+                        // @todo : gérer la devise de l'utilisateur
+                        campaignCost = (Math.round(campaignCost * 100) / 100).toFixed(2);
+                        $('.costEstimate').html(campaignCost + ' € (<?php echo $this->translate("estimate"); ?>)');
+                    }
+                });
+            });
+        }
+    }
+
+    /**
+     * Get general contacts number from selected list
+     *
+     * @return int : number of contacts
+     *               -1 if no list selected
+     *
+     */
+    function getListNbCntacts() {
+        var contactsListId = $('#contactListExtId option:selected').val();
+        var nbContacts = -1;
+        if (contactLists[contactsListId] && $.isNumeric(contactLists[contactsListId]["total"])) {
+            nbContacts = contactLists[contactsListId]["total"];
+        }
+        return nbContacts;
+    }
+
+    /**
+     * Display general contacts number
+     * from selected list
+     */
+    function showListNbContacts() {
+        var counterText = getListNbCntacts();
+        if (counterText < 0) {
+            counterText = '-';
+        }
+        $('#counter').text(counterText);
+    }
+
+    // Affichage des icônes pour les différents type de média
+    function loadMessageDatas(messagesForCosts) {
+        $('.media-icon').each(function () {
+            $(this).data("nb", messagesForCosts[$(this).data("id")].contactsNb);
+            var title = $(this).data("media");
+            switch ($(this).data('type')) {
+                case 'sms' :
+                case 'email' :
+                case 'voice' :
+                case 'voicemail' :
+                    title += ' (' + $(this).data('nb') + ' <?php echo $this->translate('contact') ?>' +
+                    ($(this).data('nb') > 1 ? 's' : '') + ')';
+                    break;
+                default:
+                    title = '(<?php echo $this->translate('broadcast') ?>)';
+                    break;
+            }
+            $(this).attr('title', title);
+        });
+    }
+
+    function emptyMessageDatas() {
+        $('.media-icon').each(function () {
+            $(this).data("nb", 0);
+            title = $(this).data("media");
+            switch ($(this).data('type')) {
+                case 'sms' :
+                case 'email' :
+                case 'voice' :
+                case 'voicemail' :
+                    title += ' (' + $(this).data('nb') + ' <?php echo $this->translate('contact') ?>' +
+                    ($(this).data('nb') > 1 ? 's' : '') + ')';
+                    break;
+                default:
+                    title = '(<?php echo $this->translate('broadcast') ?>)';
+                    break;
+            }
+            $(this).attr('title', title);
+        });
+    }
+    function displayNextStepButon() {
+        var optGroupLabel = "<?php echo strtolower($this->translate('contacts lists')); ?>";
+        if ($('#contactListExtId :selected').closest('optgroup').length == 0 ||
+            optGroupLabel == $('#contactListExtId :selected').closest('optgroup').prop('label').toLowerCase()) {
+            $("#new-step").removeClass('disable').addClass('show-loading');
+        } else {
+            $("#new-step").addClass('disable').removeClass('show-loading');
+        }
+
+    }
+
+    function gACampaign() {
+        try {
+            // Contacts number
+            var nbContacts = $("p#counter").html();
+            if (Math.round(nbContacts) == nbContacts) {
+                _gaq.push(['_trackEvent', 'Campaigns', 'Confirm', 'NbContacts', parseInt(nbContacts)]);
+            }
+
+            // Media type
+            var mediaScanned = {};
+            $('.media-icon').each(function () {
+                if (!mediaScanned.hasOwnProperty($(this).data('type'))) {
+                    switch ($(this).data('type')) {
+                        case 'sms' :
+                        case 'email' :
+                        case 'voice' :
+                        case 'voicemail' :
+                            _gaq.push(['_trackEvent', 'Campaigns', 'Confirm', $(this).data('type'),
+                                contactLists[$('#contactListExtId option:selected').val()][$(this).data('type') +
+                                'Number']]);
+                            break;
+                        default:
+                            _gaq.push(['_trackEvent', 'Campaigns', 'Confirm', $(this).data('type')]);
+                            break;
+                    }
+                    mediaScanned[$(this).data('type')] = $(this).data('type');
+                }
+            });
+
+            // Number of steps
+            var nbStep = <?php echo count($this->steps); ?>;
+            _gaq.push(['_trackEvent', 'Campaigns', 'Confirm', 'Number of steps', nbStep]);
+        } catch (e) {
+            // Error
+        }
+    }
+
+    <?php $this->jQuery()->onLoadCaptureStart(); ?>
+
+    var showCount = <?php echo (int) $this->campaign->contactListExtId; ?>;
+
+    // display contacts number
+    showListNbContacts();
+
+    // Display comment if exist
+    if ($.trim($('#comment').val()) != "") {
+        $('.label-comment').html("<?php echo ucfirst($this->translate('remove comment')); ?>");
+        $('.label-comment').addClass("remove-comment");
+        $('#comment').show();
+    } else {
+        // Hide comment if exist
+        $('.label-comment').addClass("add-comment");
+        $('.label-comment').prepend("<i class='fa fa-plus-circle fa-blue fa-bigger fa-more'></i>");
+        $('#comment').hide();
+    }
+
+    // Check if comment should be added
+    $(".add-comment").live('click', function () {
+        _gaq.push(['_trackEvent', 'Campaigns', 'CommentAdd', 'OverviewPage']);
+        $(this).toggleClass("add-comment remove-comment").
+            html("<?php echo ucfirst($this->translate('remove comment')); ?>");
+        $('.label-comment').prepend("<i class='fa fa-minus-circle fa-red fa-bigger fa-more'></i>");
+        $("#comment").show('slow');
+    });
+
+    // Check if comment should be removed
+    $(".remove-comment").live('click', function () {
+        _gaq.push(['_trackEvent', 'Campaigns', 'CommentDelete', 'OverviewPage']);
+        $(this).toggleClass("add-comment remove-comment").
+            html("<?php echo ucfirst($this->translate('add comment')); ?>");
+        $('.label-comment').prepend("<i class='fa fa-plus-circle fa-blue fa-bigger fa-more'></i>");
+        $("#comment").val("").hide("slow");
+        saveCampaign();
+    });
+
+    // Ajouter une nouvelle étape
+    $("#new-step").click(function () {
+        if (!$(this).hasClass('disable')) {
+            window.location.href = $(this).data('href');
+        }
+    });
+
+    /*
+     * Sauvegarde an AJAX du nom de la campagne
+     */
+    $('#name').change(function () {
+        var params = {};
+        params['campaignId'] = <?php echo $this->campaignId ?>;
+        params['name'] = $('#name').val();
+        params['contactListExtId'] = $('#contactListExtId').val();
+        params['comment'] = $('#comment').val();
+        $('#ajax-loading').show();
+        $.post(
+            "<?php echo $this->href('ajax-save'); ?>",
+            params,
+            function (data) {
+                $('#ajax-loading').hide();
+            }
+        );
+    });
+
+    /*
+     * Sauvegarde an AJAX de la liste de contacts de la campagne
+     */
+    $('#contactListExtId').change(function () {
+        _gaq.push(['_trackEvent', 'Campaigns', 'ContactListAdd', 'CampaignPage']);
+        // Suppression des title pour les médias avec nombre de contacts
+        $('.media-icon').each(function () {
+            $(this).attr('title', '');
+            saveCampaign();
+            displayNextStepButon();
+        });
+    });
+
+    $('#comment').change(function () {
+        _gaq.push(['_trackEvent', 'Campaigns', 'ContactListAdd', 'CampaignPage']);
+        saveCampaign();
+    });
+
+    /*
+     * Sauvegarde ajax du commentaire
+     */
+    $('#comment').change(function () {
+        _gaq.push(['_trackEvent', 'Campaigns', 'CommentUpdate', 'OverviewPage']);
+        saveCampaign();
+    });
+
+    function updateStatsPreferences() {
+        var params = {};
+        var elementId = 'statsXdays';
+        $('#' + elementId).removeClass('saved');
+        params['campaignId'] = <?php echo $this->campaignId ?>;
+        params['activeStatsXDays'] = document.getElementById(elementId).checked;
+        params['daysCount'] = $('#daysCount').val();
+
+        $.post(
+            "<?php echo $this->href('ajax-save-stats-x-days'); ?>",
+            params,
+            function (data) {
+                if (data.status === 'success') {
+                    $('#' + elementId).addClass('saved');
+                    Tools.flashMessage('<?php echo ucfirst($this->translate('campaign option saved')); ?>');
+                } else {
+                    Tools.error("<?php echo ucfirst($this->translate("unable to save campaign's option")); ?>");
+                }
+                var active = 'Off';
+                if (params['activeStatsXDays'] === true) {
+                    active = 'On';
+                } else {
+                    active = 'Off';
+                }
+                _gaq.push([
+                    '_trackEvent',
+                    'Campaigns',
+                    'EmailReport',
+                    active,
+                    parseInt(params['daysCount']),
+                    true
+                ]);
+            }
+        );
+
+
+    }
+    ;
+
+    $('#statsXdays').on('change', function () {
+        updateStatsPreferences();
+    });
+    $('#daysCount').on('change', function () {
+        document.getElementById('statsXdays').checked = true;
+        updateStatsPreferences();
+    });
+
+
+    // Show alert if confirm message
+    $('a.delete-step').live('click', function (event) {
+        event.preventDefault();
+        _gaq.push(['_trackEvent', 'Campaigns', 'StepDelete', 'OverviewPage']);
+        var deleteUrl = Translations.base_url + $(this).attr('href');
+        Tools.confirm('<?php echo ucfirst($this->translate('confirm delete step')); ?>',
+            Translations.title_dialog_confirm,
+            deleteUrl, true);
+    });
+
+
+    <?php if ($this->contractIsWeb && $this->listId !== null) : ?>
+    $(document).ready(function () {
+        $('a#checkCost').hide();
+        checkCost();
+    });
+    <?php else : ?>
+    // Calcul du budget
+    $('a#checkCost').live('click', function (event) {
+        event.preventDefault();
+        $(this).hide();
+        $(".costEstimate").html('<img src="/pictures/layout/ajax-loader_1.gif" />');
+        checkCost();
+    });
+    <?php endif ?>
+
+    <?php if($this->contractIsWeb) : ?>
+    $('.cost-tooltip').tooltip();
+    <?php endif; ?>
+
+    displayNextStepButon();
+    <?php $this->jQuery()->onLoadCaptureEnd(); ?>
+</script>
+
+<section class="content-header">
+    <i class="fa fa-paper-plane-o fa-2x left mgt5 grey"></i>
+
+    <h1><?php echo ucfirst($this->translate('details of the campaign')); ?></h1>
+</section>
+<section class="left-col">
+    <div class="campaign-content">
+        <div class='campaign-details'>
+            <div class="row form_zone mgt-15 pdb15 bggrey center">
+                <ul class="details-infos">
+                    <div class="col-md-1"></div>
+                    <div class="col-md-3 left">
+                        <label><?php echo ucfirst($this->translate('name')); ?></label>
+                        <?php echo $form->getElement('name')->setAttrib("class", "form-control"); ?>
+                    </div>
+                    <div class="col-md-3 left">
+                        <label><?php echo ucfirst($this->translate('list of contacts')); ?></label>
+                        <?php echo $form->getElement('contactListExtId')->setAttrib("class", "form-control"); ?>
+                    </div>
+                    <div class="col-md-2">
+                        <label><?php echo ucfirst($this->translate('number of contacts')); ?></label>
+
+                        <p id="counter"></p>
+                    </div>
+                    <div class="col-md-2">
+                        <?php if (!$this->campaign->isAutomatic) : ?>
+                            <li>
+                                <label>
+                                    <?php echo ucfirst($this->translate('budget')); ?>
+
+                                    <?php if ($this->contractIsWeb) : ?>
+                                        <span style="font-weight: normal;">
+                            &nbsp;<i class="cost-tooltip fa fa-question-circle" data-toggle="tooltip"
+                                     data-placement="right" title=""
+                                     data-original-title="<?php echo ucfirst($this->translate('minimum billing amount is %s €',
+                                                                                              1)); ?>"></i>
+                        </span>
+                                    <?php endif; ?>
+                                </label>
+
+                                <p class="costEstimate"></p><a href="#" id="checkCost" class="btn btn-default">
+                                    <?php echo ucfirst($this->translate("get a quote")); ?></a>
+                            </li>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-2"></div>
+                </ul>
+            </div>
+            <?php if (!$this->contractIsWeb): ?>
+                <ul class="comments mgt20 mgb20 btn btn-default pdt10">
+                    <?php if (!is_null($this->advice)) : ?>
+                        <li>
+                            <label><?php echo ucfirst($this->translateAffiliate('advice for affiliates')); ?></label>
+                            <dd><?php echo nl2br($this->advice); ?></dd>
+                        </li>
+                    <?php endif; ?>
+                    <li>
+                        <label class="label-comment"><?php echo ucfirst($this->translate('add comment')); ?></label>
+                        <?php echo $form->getElement('comment'); ?>
+                    </li>
+                </ul>
+            <?php endif; ?>
+            <div class="row box-header">
+                <div class="col-md-12">
+                    <h2><?php echo ucfirst($this->translate('campaign report')); ?></h2>
+                </div>
+            </div>
+            <div class="row mgb20">
+
+                <table class="mgl20">
+                    <tr>
+                        <td><input type="checkbox" name="statsXdays" id="statsXdays"
+                                <?php echo $this->campaign->statsEmailDelay ? 'checked="checked"' : ''; ?> /></td>
+                        <td class="pdl10"><?php echo ucfirst($this->translate("receive a campaign report by email at day+")); ?></td>
+                        <td class="pdl10"><select name="daysCount" id="daysCount" class="form-control">
+                                <?php for ($i = 1; $i <= 10; $i++) {
+                                    $selected = "";
+                                    if ($this->daysCountBeforeStats == $i) {
+                                        $selected = 'selected="true"';
+                                    }
+                                    echo '<option value="' . $i . '" ' . $selected . '>' . $i . '</option>';
+                                } ?>
+                            </select></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-left-col">
+        <div class="box">
+            <div class="box-header">
+                <h3><?php echo ucfirst($this->translate('summary')); ?></h3>
+            </div>
+            <div class="box-body">
+
+
+                <table class="table table-bordered" cellspacing="0" cellpadding="0">
+                    <thead>
+                    <tr class="entete">
+                        <th><?php echo ucfirst($this->translate('step')); ?></th>
+                        <th><?php echo ucfirst($this->translate('scheduled time')); ?></th>
+                        <?php if (!$this->contractIsWeb): ?>
+                            <th><?php echo ucfirst($this->translate('sending type')); ?></th><?php endif; ?>
+                        <th><?php echo ucfirst($this->translate('Channels')); ?></th>
+                        <th style="width:140px;"><?php echo ucfirst($this->translate('Actions')); ?></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php
+                    $index = 0;
+                    if (!empty($this->steps)) :
+                        foreach ($this->steps as $key => $step) :
+                            $index++;
+                            $stepHref = $this->href(
+                                'step-list',
+                                array(
+                                    'campaignId' => $this->campaignId,
+                                    'stepId' => $step->id
+                                )
+                            );
+                            $dateExecution = (isset($step->dateExecution) ?
+                                date('d/m/Y H:i', strtotime($step->dateExecution)) :
+                                $this->translate('immediate'));
+                            ?>
+                            <tr class="<?php echo $this->cycle(array('odd', 'even'))->next(); ?>">
+                                <th>
+                                    <a href="<?php echo $stepHref; ?>" class="show-loading">
+                                        <?php echo ucfirst($this->translate('step')); ?> <?php echo $index; ?></a>
+                                </th>
+                                <th>
+                                    <?php echo $dateExecution; ?>
+                                </th>
+                                <?php if (!$this->contractIsWeb): ?>
+                                    <th><?php echo $this->translate($step->mode) ?></th><?php endif; ?>
+
+                                <?php if (!isset($step->messages)) : ?>
+                                    <th>-</th>
+                                <?php else : ?>
+                                    <th>
+                                        <?php
+                                        foreach ($step->messages as $message) :
+                                            $messageHref = $this->href(
+                                                'step-list',
+                                                array(
+                                                    'campaignId' => $this->campaignId,
+                                                    'stepId' => $step->id,
+                                                    'messageId' => $message->id
+                                                )
+                                            );
+
+                                            $iconUrl = "/pictures/layout/pic-dashboard-perf-{$message->media}.png";
+                                            ?>
+                                            <a href="<?php echo $messageHref; ?>"
+                                               class="show-loading"
+                                               data-gaid="MediaSelect_OverviewPage">
+                                                <img style="height:29px" src="<?php echo $iconUrl; ?>"
+                                                     class="media-icon"
+                                                     data-id="<?php echo $message->id ?>"
+                                                     data-media="<?php echo $this->translate($message->media) ?>"
+                                                     data-type="<?php echo $message->media ?>"
+                                                     data-nb="" title=""/>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    </th>
+                                <?php endif; ?>
+                                <th style="width:150px">
+
+
+                                    <div class="btn-group">
+                                        <?php
+                                        $urledit = $this->href('step-list',
+                                                               array('campaignId' => $this->campaignId,
+                                                                     'stepId' => $step->id));
+                                        echo "<a href='" . $urledit .
+                                            "' class='btn btn-default'><i class='fa fa-edit'></i> " .
+                                            ucfirst($this->translate('Edit step')) . "</a>";
+                                        ?>
+                                        <?php if ($this->pageAccess('step-add')) : ?>
+                                            <button type="button" class="btn btn-default dropdown-toggle"
+                                                    data-toggle="dropdown">
+                                                <span class="caret"></span>
+                                                <span class="sr-only">Toggle Dropdown</span>
+                                            </button>
+                                            <ul class="dropdown-menu" role="menu">
+                                                <li>
+                                                    <?php
+                                                    if ($this->campaign->canUpdateSteps == 1 &&
+                                                        $this->pageAccess('step-add')
+                                                    ) {
+                                                        $urldelete = $this->href('step-delete',
+                                                                                 array('campaignId' => $this->campaignId,
+                                                                                       'stepId' => $step->id));
+                                                        echo "<a href='" . $urldelete .
+                                                            "'><i class='fa fa-trash-o'></i> " .
+                                                            ucfirst($this->translate('delete step')) . "</a>";
+                                                    }
+                                                    ?>
+                                                </li>
+
+                                            </ul>
+                                        <?php endif; ?>
+                                    </div>
+
+                                </th>
+                            </tr>
+                        <?php endforeach;
+                    endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-content-buttons">
+        <ul>
+            <?php if (Dm_Session::GetConnectedUserContract()->type == 'web') : ?>
+                <li>
+                    <button
+                        onclick="Tools.alertWeb()"
+                        class="btn btn-primary relative">
+                        <?php echo ucfirst($this->translate('add step')) ?>&nbsp;
+                        <div class="premium"><img src="/pictures/layout/e-commerce-star_small.png"/></div>
+                    </button>
+                </li>
+            <?php else : ?>
+                <?php
+                if ($this->pageAccess('step-add') && $this->campaign->canUpdateSteps == 1 &&
+                    !$this->campaign->isAutomatic
+                ) :
+                    $setAddUrl = $this->href('step-add',
+                                             array('campaignId' => $this->campaignId,
+                                                   'campaignName' => urlencode($this->campaign->name),
+                                                   'stepCount' => count($this->steps)));
+                    ?>
+                    <li>
+                        <button
+                            id="new-step"
+                            data-href="<?php echo $setAddUrl; ?>"
+                            class="show-loading disable btn btn-primary"
+                            data-gaid="StepAdd_OverviewPage"
+                            ><?php echo ucfirst($this->translate('add step')) ?>
+                        </button>
+                    </li>
+                <?php endif; ?>
+            <?php endif; ?>
+            <?php
+            if ($this->pageAccess('campaign-confirm')):
+                $campaignConfirmUrl =
+                    $this->href('campaign-confirm', array('campaignId' => $this->campaignId, 'ajax' => true));
+                ?>
+                <li>
+                    <button
+                        class="btn btn-primary"
+                        id="confirm-campaign"
+                        data-href="<?php echo $campaignConfirmUrl; ?>"
+                        data-gaid="Confirm_OverviewPage"
+                        ><?php echo ucfirst($this->translate('confirm')) ?>
+                    </button>
+                </li>
+            <?php endif; ?>
+
+        </ul>
+    </div>
+</section>
